@@ -14,20 +14,34 @@ import numpy as np
 
 
 class DQN(nn.Module):
+    """ Q Network for DQN Agent """
+
     def __init__(self, state_dim, action_dim, n_neurons=64):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(state_dim, n_neurons)
-        self.fc2 = nn.Linear(n_neurons, n_neurons)
+        # self.fc2 = nn.Linear(n_neurons, n_neurons)
         self.head = nn.Linear(n_neurons, action_dim)
+
+        self.value_fc1 = nn.Linear(state_dim, n_neurons)
+        # self.value_fc2 = nn.Linear(n_neurons, n_neurons)
+        self.value_head = nn.Linear(n_neurons, 1)
 
     def forward(self, state):
         x = torch.relu(self.fc1(state))
         # x = torch.relu(self.fc2(x))
         x = self.head(x)
-        return x
+
+        value = torch.relu(self.value_fc1(state))
+        # value = torch.relu(self.value_fc2(value))
+        value = self.value_head(value)
+
+        qvals = value + (x - x.mean())
+        return qvals
 
 
 class ReplayBuffer:
+    """ Replay Buffer for DQN Agent"""
+
     def __init__(self, capacity):
         self.capacity = capacity
         self.buffer = []
@@ -49,8 +63,11 @@ class ReplayBuffer:
 
 
 class Agent:
+    """ DQN Agent """
+
     def __init__(self, state_dim, action_dim, lr=1e-3, gamma=0.99, epsilon=0.8, target_update_freq=100,
                  buffer_capacity=100_000, batch_size=128, n_neurons=64):
+        self.action_dim = action_dim
         self.device = "cpu"
         self.q_network = DQN(state_dim, action_dim, n_neurons=n_neurons).to(self.device)
         self.target_network = DQN(state_dim, action_dim).to(self.device)
@@ -67,7 +84,7 @@ class Agent:
 
     def act(self, state):
         if random.random() < self.epsilon:
-            return np.random.randint(0, 2)
+            return np.random.randint(0, self.action_dim)
         state = torch.tensor(state).float().unsqueeze(0).to(self.device)
         q_value = self.q_network(state)
         action = torch.argmax(q_value, dim=1).item()
@@ -100,24 +117,30 @@ class Agent:
         self.buffer.push(state, action, reward, next_state, done)
 
 
-def learn(agent, env, max_steps=10000, max_epsilon=1.0, min_epsilon=0.01, fraction_episodes_decay=0.5):
+def learn(agent, env, max_steps=10000, max_epsilon=1.0, min_epsilon=0.01, fraction_episodes_decay=0.5,
+          step_per_collect=50, update_per_step=0.5):
     """ Agent DQN Learning function """
     episode_reward, episode_length = 0, 0
     state = env.reset()[0]
+    counter = 0
     for step in tqdm(range(max_steps)):
         # Act
         action = agent.act(state)
         next_state, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
+        episode_reward += reward
+        episode_length += 1
+        counter += 1
 
         # Save to replay buffer
         agent.push(state, action, reward, next_state, done)
         state = next_state
 
         # Update agent
-        agent.update()
-        episode_reward += reward
-        episode_length += 1
+        if counter >= step_per_collect:
+            for i in range(int(update_per_step * step_per_collect)):
+                agent.update()
+            counter = 0
 
         # Logging
         if done:

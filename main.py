@@ -24,7 +24,7 @@ def main():
     agent_hyperparameters = {'lr': 1e-3, 'gamma': 0.99, 'epsilon': 0.8, 'target_update_freq': 100,
                              'buffer_capacity': 100_000, 'batch_size': 128, 'n_neurons': 64}
     learning_hyperparameters = {'max_steps': 500_000, 'fraction_episodes_decay': 0.6, 'max_epsilon': 0.5,
-                                'min_epsilon': 0.01}
+                                'min_epsilon': 0.01, 'step_per_collect': 50, 'update_per_step': 0.5}
 
     # Agent
     agent = Agent(state_dim=state_dim, action_dim=action_dim, **agent_hyperparameters)
