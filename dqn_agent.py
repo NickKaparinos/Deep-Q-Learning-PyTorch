@@ -10,7 +10,6 @@ import torch.optim as optim
 import numpy as np
 import wandb
 from tqdm import tqdm
-import numpy as np
 
 
 class DQN(nn.Module):
@@ -19,20 +18,16 @@ class DQN(nn.Module):
     def __init__(self, state_dim, action_dim, n_neurons=64):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(state_dim, n_neurons)
-        # self.fc2 = nn.Linear(n_neurons, n_neurons)
         self.head = nn.Linear(n_neurons, action_dim)
 
         self.value_fc1 = nn.Linear(state_dim, n_neurons)
-        # self.value_fc2 = nn.Linear(n_neurons, n_neurons)
         self.value_head = nn.Linear(n_neurons, 1)
 
     def forward(self, state):
         x = torch.relu(self.fc1(state))
-        # x = torch.relu(self.fc2(x))
         x = self.head(x)
 
         value = torch.relu(self.value_fc1(state))
-        # value = torch.relu(self.value_fc2(value))
         value = self.value_head(value)
 
         qvals = value + (x - x.mean())
@@ -70,7 +65,7 @@ class Agent:
         self.action_dim = action_dim
         self.device = "cpu"
         self.q_network = DQN(state_dim, action_dim, n_neurons=n_neurons).to(self.device)
-        self.target_network = DQN(state_dim, action_dim).to(self.device)
+        self.target_network = DQN(state_dim, action_dim, n_neurons=n_neurons).to(self.device)
         self.target_network.load_state_dict(self.q_network.state_dict())
         self.target_network.eval()
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
@@ -100,11 +95,14 @@ class Agent:
         next_state = torch.tensor(next_state).float().to(self.device)
         done = torch.tensor(done).float().to(self.device)
 
-        q_values = self.q_network(state).gather(1, action.unsqueeze(1)).squeeze(1)
-        target_q_values = self.target_network(next_state).max(1)[0]
-        target = reward + (1 - done) * self.gamma * target_q_values
+        q_values_next = self.q_network(next_state)
+        _, q_next_argmax = q_values_next.max(1, keepdim=True)
 
-        loss = self.loss_fn(q_values, target.detach())
+        q_values = self.q_network(state).gather(1, action.unsqueeze(1)).squeeze(1)
+        target_q_values = self.target_network(next_state)
+        q_targets = reward + (1 - done) * self.gamma * target_q_values.gather(1, q_next_argmax).squeeze()
+
+        loss = self.loss_fn(q_values, q_targets)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
