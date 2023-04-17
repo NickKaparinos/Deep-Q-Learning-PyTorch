@@ -2,12 +2,11 @@
 Nikos Kaparinos
 2023
 """
-import wandb
+import time
+from os import makedirs
+import gymnasium as gym
 from dqn_agent import *
 from utilities import *
-import gymnasium as gym
-from os import makedirs
-import time
 
 
 def main():
@@ -15,7 +14,8 @@ def main():
     start = time.perf_counter()
     set_all_seeds()
 
-    # Environment 'CartPole-v1' 'MountainCar-v0' 'Acrobot-v1' 'LunarLander-v2'
+    # Environment
+    # Available environments: 'CartPole-v1' 'MountainCar-v0' 'Acrobot-v1' 'LunarLander-v2'
     env_id = 'LunarLander-v2'
     env = gym.make(env_id, render_mode="rgb_array")
     state_dim = env.observation_space.shape[0]

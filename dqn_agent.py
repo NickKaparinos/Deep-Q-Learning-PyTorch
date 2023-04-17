@@ -4,12 +4,12 @@ Nikos Kaparinos
 """
 
 import random
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import wandb
 from tqdm import tqdm
+import wandb
 
 
 class DQN(nn.Module):
@@ -24,13 +24,13 @@ class DQN(nn.Module):
         self.value_head = nn.Linear(n_neurons, 1)
 
     def forward(self, state):
-        x = torch.relu(self.fc1(state))
-        x = self.head(x)
+        advantage = torch.relu(self.fc1(state))
+        advantage = self.head(advantage)
 
         value = torch.relu(self.value_fc1(state))
         value = self.value_head(value)
 
-        qvals = value + (x - x.mean())
+        qvals = value + (advantage - advantage.mean())
         return qvals
 
 
