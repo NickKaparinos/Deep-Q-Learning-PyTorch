@@ -1,4 +1,4 @@
-# DQN-from-scratch
+# Deep Q-Learning PyTorch
 Deep Q Learning from scratch using PyTorch.
 
 # DQN improvements
